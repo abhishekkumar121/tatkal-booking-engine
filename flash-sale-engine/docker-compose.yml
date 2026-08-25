@@ -1,0 +1,50 @@
+# Docker Compose file format version.
+version: '3.8'
+
+# Yahan project ke containers/services define hote hain.
+services:
+  # PostgreSQL database service; permanent data yahin store hota hai.
+  postgres:
+    # Official Postgres version 16 Docker image use kar rahe hain.
+    image: postgres:16
+    # Container ke andar initial database settings.
+    environment:
+      # Postgres user ka naam.
+      POSTGRES_USER: flashsale
+      # Postgres user ka password.
+      POSTGRES_PASSWORD: flashsale123
+      # Initial database ka naam.
+      POSTGRES_DB: flashsale_db
+    # Host machine aur container ke ports map karte hain.
+    ports:
+      # Laptop ka 5433 port container ke Postgres 5432 port se connect hai.
+      - "5433:5432"
+    # Database data ko persistent volume mein save karte hain.
+    volumes:
+      # pgdata volume container ke Postgres data folder se linked hai.
+      - pgdata:/var/lib/postgresql/data
+
+  # Redis service; fast cache/atomic stock logic ke liye.
+  redis:
+    # Official Redis version 7 image use kar rahe hain.
+    image: redis:7
+    # Redis port expose kar rahe hain.
+    ports:
+      # Laptop ka 6379 port container ke Redis 6379 port se connect hai.
+      - "6379:6379"
+
+  # RabbitMQ service; future async queue processing ke liye.
+  rabbitmq:
+    # RabbitMQ image with management dashboard.
+    image: rabbitmq:3-management
+    # RabbitMQ ke ports expose kar rahe hain.
+    ports:
+      # App queue communication ke liye port.
+      - "5672:5672"
+      # Browser management dashboard ke liye port.
+      - "15672:15672"
+
+# Named volumes declare karte hain.
+volumes:
+  # Postgres data persist karne wala Docker volume.
+  pgdata:

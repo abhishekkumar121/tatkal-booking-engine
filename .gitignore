@@ -1,0 +1,9 @@
+.env
+.env.local
+*.env
+venv/
+node_modules/
+.next/
+__pycache__/
+*.pyc
+.git-backup/

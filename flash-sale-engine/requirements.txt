@@ -1,0 +1,48 @@
+# FastAPI web framework, APIs banane ke liye.
+fastapi
+
+# Uvicorn ASGI server, FastAPI app run karne ke liye.
+uvicorn[standard]
+
+# SQLAlchemy ORM, Python classes se database tables handle karne ke liye.
+sqlalchemy
+
+# Alembic migrations, database schema changes track/apply karne ke liye.
+alembic
+
+# PostgreSQL driver, SQLAlchemy ko Postgres se connect karne ke liye.
+psycopg2-binary
+
+# Redis client, future stock/cache logic ke liye.
+redis
+
+# RabbitMQ client, future queue/background processing ke liye.
+pika
+
+# JWT token create/verify karne ke liye.
+python-jose[cryptography]
+
+# Password hashing ke liye passlib with bcrypt support.
+passlib[bcrypt]
+bcrypt==4.0.1
+
+# .env file se environment variables load karne ke liye.
+python-dotenv
+
+# Data validation library; FastAPI request/response schemas mein use hoti hai.
+pydantic
+
+# EmailStr validation ke liye required package.
+email-validator
+
+# Resend email API HTTP client.
+requests
+
+apscheduler
+
+# Distributed tracing: FastAPI + SQLAlchemy + Redis spans export to Jaeger via OTLP.
+opentelemetry-sdk
+opentelemetry-exporter-otlp-proto-http
+opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-sqlalchemy
+opentelemetry-instrumentation-redis
