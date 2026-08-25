@@ -1,22 +1,25 @@
 # Tatkal Booking Engine
 
-A full-stack flash-sale style Tatkal booking system with a FastAPI backend, Next.js frontend, Redis queue/stock control, PostgreSQL persistence, k6 load testing, CI, and optional OpenTelemetry tracing through Jaeger.
+A full-stack railway Tatkal booking simulation built like a flash-sale system. It combines a Next.js passenger UI, FastAPI backend, PostgreSQL persistence, Redis queue/stock control, WebSocket live updates, Docker, CI, k6 load testing, and optional OpenTelemetry tracing.
 
-## One Command Run
+## Live Demo
 
-From the repository root:
+- Frontend: https://tatkal-frontend.vercel.app
+- Backend API: https://tatkal-backend-2874.onrender.com
+- API docs: https://tatkal-backend-2874.onrender.com/docs
 
-```bash
-docker compose up --build
-```
+Note: the backend runs on Render free tier, so the first request after inactivity can take a short cold-start delay.
 
-Services:
+## What It Does
 
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- API docs: http://localhost:8000/docs
-- Jaeger tracing UI: http://localhost:16686
-- PostgreSQL, Redis, and RabbitMQ run on the internal Docker network for the full stack.
+- Email verification based signup and login
+- Railway-style train list UI with classes grouped under one train
+- Tatkal profile preparation before the booking window: passenger names, adult count, berth preference, payment type
+- Waiting room with live stock/status updates over WebSocket
+- Redis-backed queue for high-demand booking windows
+- Atomic stock reservation to prevent overselling
+- Payment success/failure simulation, seat release, and refund status flow
+- Docker Compose local stack with backend, frontend, Postgres, Redis, RabbitMQ, and Jaeger
 
 ## Architecture
 
@@ -25,9 +28,9 @@ flowchart LR
   User[Passenger Browser] --> Frontend[Next.js Frontend]
   Frontend -->|REST auth, trains, queue, orders, payment| API[FastAPI Backend]
   Frontend <-->|WebSocket live stock/status| API
-  API --> DB[(PostgreSQL)]
-  API --> Redis[(Redis Queue + Stock)]
-  API --> RabbitMQ[(RabbitMQ)]
+  API --> DB[(PostgreSQL / Supabase)]
+  API --> Redis[(Redis / Upstash)]
+  API --> RabbitMQ[(RabbitMQ - local infra)]
   API --> Jaeger[Jaeger / OpenTelemetry]
   Scheduler[APScheduler Jobs] --> Redis
   Scheduler --> DB
@@ -35,24 +38,50 @@ flowchart LR
 
 ## Booking Flow
 
-1. Passenger logs in.
-2. Passenger selects train and class.
-3. Passenger saves Tatkal profile: adult count, names, berth preference, payment type.
-4. Waiting room receives live stock/status through WebSocket.
-5. When the window is live, passenger clicks `Book Tatkal Now`.
-6. Backend gates traffic through Redis queue, reserves stock atomically, creates an order.
-7. Passenger pays and receives confirmation/PNR.
+1. Passenger creates an account and verifies email.
+2. Passenger logs in and sees available Tatkal train windows.
+3. Classes like `2A`, `3A`, and `SL` are grouped under the same train.
+4. Passenger saves booking profile before the Tatkal rush.
+5. Waiting room receives live stock/status through WebSocket.
+6. When the window is live, passenger clicks `Book Tatkal Now`.
+7. Backend gates traffic through Redis queue and reserves stock atomically.
+8. Passenger pays and receives confirmation/PNR.
 
-## Backend
+## Tech Stack
 
-Local run:
+- Frontend: Next.js, TypeScript, CSS
+- Backend: FastAPI, SQLAlchemy, Alembic
+- Database: PostgreSQL locally, Supabase in production
+- Queue/cache: Redis locally, Upstash Redis in production
+- Email: Gmail SMTP fallback; Resend supported when a domain is verified
+- Infra: Docker Compose, Render, Vercel
+- Observability: OpenTelemetry + Jaeger
+- Load testing: k6
+- CI: GitHub Actions
+
+## Local Run
+
+From the repository root:
+
+```bash
+docker compose up --build
+```
+
+Local URLs:
+
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API docs: http://localhost:8000/docs
+- Jaeger tracing UI: http://localhost:16686
+
+## Backend Only
 
 ```bash
 cd flash-sale-engine
 python -m uvicorn app.main:app --reload
 ```
 
-Main components:
+Main backend modules:
 
 - `app/routers/auth.py`: register, verify email, login, current user
 - `app/routers/flash_sales.py`: flash sale creation and listing
@@ -61,9 +90,7 @@ Main components:
 - `app/scheduler.py`: queue promotion and unpaid order cancellation
 - `app/tracing.py`: OpenTelemetry instrumentation
 
-## Frontend
-
-Local run:
+## Frontend Only
 
 ```bash
 cd tatkal-frontend
@@ -71,44 +98,55 @@ npm install
 npm run dev
 ```
 
-The frontend uses `NEXT_PUBLIC_API_BASE`, defaulting to `http://localhost:8000`.
+Frontend env:
 
-## Free Demo Deployment
+```text
+NEXT_PUBLIC_API_BASE=http://localhost:8000
+```
 
-Recommended free/portfolio stack:
+For production:
+
+```text
+NEXT_PUBLIC_API_BASE=https://tatkal-backend-2874.onrender.com
+```
+
+## Deployment
+
+Current deployed stack:
 
 - Frontend: Vercel
 - Backend: Render Web Service
 - Postgres: Supabase Transaction Pooler
-- Redis: Upstash Redis TCP/TLS URL
-- Email: Resend HTTP API
+- Redis: Upstash Redis TCP/TLS
+- Email: Gmail SMTP fallback
 
-### Backend On Render
+### Render Backend
 
-Create a Render Web Service:
+Render service settings:
 
 ```text
 Language: Docker
 Root Directory: flash-sale-engine
-Dockerfile Path: Dockerfile
+Branch: main
 Instance Type: Free
 ```
 
-Set these Render environment variables:
+Environment variables:
 
 ```text
 DATABASE_URL=<Supabase transaction pooler URI>
 REDIS_URL=<Upstash rediss:// TCP URL>
 SECRET_KEY=<secure random string>
-FRONTEND_ORIGIN=http://localhost:3000
-RESEND_API_KEY=<Resend API key>
-RESEND_FROM_EMAIL=TatkalEngine <onboarding@resend.dev>
+FRONTEND_ORIGIN=https://tatkal-frontend.vercel.app
+SMTP_EMAIL=<gmail address>
+SMTP_PASSWORD=<gmail app password>
 ```
 
-After the Vercel frontend is live, update `FRONTEND_ORIGIN` to the Vercel URL:
+Optional Resend variables:
 
 ```text
-FRONTEND_ORIGIN=https://your-vercel-app.vercel.app
+RESEND_API_KEY=<Resend API key>
+RESEND_FROM_EMAIL=TatkalEngine <no-reply@yourdomain.com>
 ```
 
 The backend Dockerfile runs migrations automatically before starting:
@@ -117,28 +155,54 @@ The backend Dockerfile runs migrations automatically before starting:
 alembic upgrade head
 ```
 
-### Frontend On Vercel
+### Vercel Frontend
 
-Create a Vercel project:
+Vercel project settings:
 
 ```text
 Root Directory: tatkal-frontend
+Framework: Next.js
 ```
 
-Set:
+Environment variable:
 
 ```text
-NEXT_PUBLIC_API_BASE=https://your-render-backend.onrender.com
+NEXT_PUBLIC_API_BASE=https://tatkal-backend-2874.onrender.com
 ```
 
-### Production Email Notes
+## Sample Live Flash Sale Payload
 
-Render free web services should use Resend instead of Gmail SMTP. Gmail SMTP remains as a local fallback only.
+Use the backend Swagger docs to create a grouped Tatkal train window. Keep the same train name and change only the class suffix:
 
-If using Resend without a verified domain, emails may only send to your verified Resend account email. For public signup testing, verify a domain in Resend and set:
-
-```text
-RESEND_FROM_EMAIL=TatkalEngine <verify@yourdomain.com>
+```json
+{
+  "items": [
+    {
+      "name": "Rajdhani Express - 2A",
+      "price": 2200,
+      "total_stock": 5,
+      "start_time": "2026-08-26T01:45:00",
+      "end_time": "2026-08-26T03:45:00",
+      "max_per_user": 1
+    },
+    {
+      "name": "Rajdhani Express - 3A",
+      "price": 1500,
+      "total_stock": 8,
+      "start_time": "2026-08-26T01:45:00",
+      "end_time": "2026-08-26T03:45:00",
+      "max_per_user": 2
+    },
+    {
+      "name": "Rajdhani Express - SL",
+      "price": 600,
+      "total_stock": 12,
+      "start_time": "2026-08-26T01:45:00",
+      "end_time": "2026-08-26T03:45:00",
+      "max_per_user": 2
+    }
+  ]
+}
 ```
 
 ## WebSocket Live Stock
@@ -149,11 +213,11 @@ Waiting-room stock/status updates are pushed from:
 ws://localhost:8000/ws/flash-sales/{flash_sale_id}/stock
 ```
 
-This replaces frontend polling for the Tatkal waiting screen.
+In production the frontend derives the WebSocket URL from `NEXT_PUBLIC_API_BASE`.
 
 ## Tracing
 
-When running through Docker Compose, the backend exports traces to Jaeger via OTLP.
+When running through Docker Compose, the backend exports traces to Jaeger through OTLP.
 
 Open:
 
@@ -204,9 +268,10 @@ It runs:
 
 ## Resume Signals
 
-- Dockerized full-stack app with one-command local orchestration
+- Full-stack Dockerized system with one-command local orchestration
 - Redis-backed queue and atomic stock reservation
 - WebSocket live stock/status push
+- Production deployment on Render, Vercel, Supabase, and Upstash
 - OpenTelemetry distributed tracing with Jaeger
 - k6 full-flow load test
 - GitHub Actions CI for backend and frontend
