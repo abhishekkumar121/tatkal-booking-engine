@@ -321,9 +321,20 @@ export default function Home() {
     return `${m}:${s}`;
   }
 
+  function parseTrainProduct(productName: string) {
+    const match = productName.match(/^(.*?)\s*(?:-|—|–)\s*(1A|2A|3A|SL|CC|EC|2S)$/i);
+    if (!match) {
+      return { trainName: productName.trim(), trainClass: productName.trim() };
+    }
+
+    return {
+      trainName: match[1].trim(),
+      trainClass: match[2].toUpperCase(),
+    };
+  }
+
   function getTrainClass(productName: string) {
-    const parts = productName.split(" — ");
-    return parts.length > 1 ? parts[1] : productName;
+    return parseTrainProduct(productName).trainClass;
   }
 
   function getTrainMeta(trainName: string) {
@@ -373,7 +384,7 @@ export default function Home() {
 
   const groupedSales = availableSales.reduce(
     (groups: Record<string, FlashSaleWithProduct[]>, sale) => {
-      const [trainName] = sale.product_name.split(" — ");
+      const { trainName } = parseTrainProduct(sale.product_name);
       if (!groups[trainName]) groups[trainName] = [];
       groups[trainName].push(sale);
       return groups;
