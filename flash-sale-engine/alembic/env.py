@@ -68,7 +68,9 @@ def run_migrations_offline() -> None:
 # Online migration mode; actual database connection banakar migrations apply karta hai.
 def run_migrations_online() -> None:
     # .env ke DATABASE_URL ko Alembic config mein set karte hain.
-    config.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL"))
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
     # Alembic config se database engine create karta hai.
     connectable = engine_from_config(
