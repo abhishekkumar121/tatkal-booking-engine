@@ -19,8 +19,22 @@ load_dotenv()
 # .env se DATABASE_URL value uthata hai, jisme Postgres connection string hoti hai.
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+def normalize_database_url(database_url: str | None) -> str:
+    if not database_url:
+        raise RuntimeError("DATABASE_URL environment variable is required")
+
+    # The project installs psycopg2-binary, so keep Render/Supabase URLs on that driver.
+    psycopg_prefix = "postgresql+psycopg://"
+    if database_url.startswith(psycopg_prefix):
+        return "postgresql+psycopg2://" + database_url[len(psycopg_prefix):]
+
+    if database_url.startswith("postgresql://"):
+        return "postgresql+psycopg2://" + database_url[len("postgresql://"):]
+
+    return database_url
+
 # Database engine create karta hai; SQLAlchemy isi ke through DB se baat karega.
-engine = create_engine(DATABASE_URL)
+engine = create_engine(normalize_database_url(DATABASE_URL))
 
 # SessionLocal ek factory hai jo new DB session banati hai.
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

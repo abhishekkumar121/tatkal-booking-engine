@@ -14,7 +14,7 @@ sys.path.append(os.getcwd())
 load_dotenv()
 
 # SQLAlchemy Base import karte hain; Alembic ko metadata yahin se milega.
-from app.database import Base
+from app.database import Base, normalize_database_url
 
 # Models import karna zaroori hai taaki Base.metadata mein saari tables register ho jaayein.
 from app.models import User, Product, FlashSale, Order
@@ -70,7 +70,11 @@ def run_migrations_online() -> None:
     # .env ke DATABASE_URL ko Alembic config mein set karte hain.
     database_url = os.getenv("DATABASE_URL")
     if database_url:
-        config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
+        # Keep Alembic on the installed psycopg2 driver as well as the app engine.
+        config.set_main_option(
+            "sqlalchemy.url",
+            normalize_database_url(database_url).replace("%", "%%"),
+        )
 
     # Alembic config se database engine create karta hai.
     connectable = engine_from_config(
